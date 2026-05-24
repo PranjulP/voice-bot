@@ -4,3 +4,4 @@ groq
 python-multipart
 uvicorn[standard]
 aiofiles
+httpx

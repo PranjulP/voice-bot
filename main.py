@@ -1,20 +1,18 @@
 import os
-import sys
 import json
 import tempfile
 import time
-
-# Add user site-packages so smallestai is findable
-sys.path.insert(0, '/Users/pranjul/Library/Python/3.9/lib/python/site-packages')
+import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 from groq import Groq
+
 # --- API Clients ---
 openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY")
 
 app = FastAPI()
 
@@ -153,11 +151,15 @@ async def websocket_endpoint(websocket: WebSocket):
 
 async def send_tts_chunk(websocket: WebSocket, text: str, t_before: float, already_logged: bool, t_start: float = None):
     """Convert a sentence to audio and push it to the browser immediately."""
-    response = openai_client.audio.speech.create(
-        model="tts-1",
-        voice="onyx",
-        input=text,
-        response_format="mp3"
+    # Deepgram Aura TTS — fast, US-based, ~200ms latency
+    response = httpx.post(
+        "https://api.deepgram.com/v1/speak?model=aura-2-en&encoding=mp3",
+        headers={
+            "Authorization": f"Token {DEEPGRAM_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json={"text": text},
+        timeout=10.0
     )
     audio = response.content
     t_tts_done = time.time()
