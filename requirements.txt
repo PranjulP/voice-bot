@@ -1,0 +1,6 @@
+fastapi
+openai
+groq
+python-multipart
+uvicorn[standard]
+aiofiles
