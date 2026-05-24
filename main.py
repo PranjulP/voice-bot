@@ -162,7 +162,7 @@ async def send_tts_chunk(websocket: WebSocket, text: str, t_before: float, alrea
         timeout=10.0
     )
     audio = response.content
-    print(f"Deepgram status: {response.status_code}, body: {response.text[:200]}")
+    print(f"Deepgram status: {response.status_code}, content-type: {response.headers.get('content-type')}, bytes: {len(audio)}, first4: {audio[:4]}")
     t_tts_done = time.time()
     if not already_logged:
         print(f"[T4] First TTS chunk ready: {t_tts_done - t_before:.2f}s for TTS")
