@@ -67,7 +67,7 @@
 
   // --- WebSocket Setup ---
   // One persistent connection for the whole session
-  const ws = new WebSocket(`ws://${window.location.host}/ws`);
+  const ws = new WebSocket(`wss://voice-bot-production-cecc.up.railway.app/ws`);
   ws.binaryType = 'arraybuffer'; // receive audio as ArrayBuffer not Blob
 
   ws.onopen = () => {
