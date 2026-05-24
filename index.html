@@ -58,7 +58,7 @@
     }
     isPlaying = true;
     const buffer = audioQueue.shift();
-    const blob = new Blob([buffer], { type: 'audio/wav' });
+    const blob = new Blob([buffer], { type: 'audio/mpeg' });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     audio.play();
