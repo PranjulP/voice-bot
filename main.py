@@ -153,7 +153,7 @@ async def send_tts_chunk(websocket: WebSocket, text: str, t_before: float, alrea
     """Convert a sentence to audio and push it to the browser immediately."""
     # Deepgram Aura TTS — fast, US-based, ~200ms latency
     response = httpx.post(
-        "https://api.deepgram.com/v1/speak?model=aura-asteria-en&container=mp3",
+        "https://api.deepgram.com/v1/speak?model=aura-asteria-en&container=wav",
         headers={
             "Authorization": f"Token {DEEPGRAM_API_KEY}",
             "Content-Type": "application/json"
