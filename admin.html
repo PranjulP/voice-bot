@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Bot Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+    /* Auth overlay */
+    #auth-overlay {
+      position: fixed; inset: 0; background: #0f172a;
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    #auth-box {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 32px; width: 320px; text-align: center;
+    }
+    #auth-box h2 { margin-bottom: 20px; font-size: 18px; }
+    #auth-box input {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid #475569; background: #0f172a; color: #e2e8f0;
+      font-size: 14px; margin-bottom: 12px;
+    }
+    #auth-box button {
+      width: 100%; padding: 10px; background: #3b82f6; color: white;
+      border: none; border-radius: 8px; cursor: pointer; font-size: 14px;
+    }
+    #auth-error { color: #f87171; font-size: 13px; margin-top: 8px; display: none; }
+
+    /* Layout */
+    header {
+      background: #1e293b; border-bottom: 1px solid #334155;
+      padding: 16px 24px; display: flex; align-items: center; gap: 16px;
+    }
+    header h1 { font-size: 16px; font-weight: 600; }
+    header a { color: #94a3b8; font-size: 13px; text-decoration: none; margin-left: auto; }
+    header a:hover { color: #e2e8f0; }
+
+    .tabs { display: flex; border-bottom: 1px solid #334155; background: #1e293b; padding: 0 24px; }
+    .tab {
+      padding: 12px 20px; cursor: pointer; font-size: 14px; color: #94a3b8;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+    }
+    .tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+
+    .tab-content { display: none; padding: 24px; max-width: 900px; margin: 0 auto; }
+    .tab-content.active { display: block; }
+
+    /* Form elements */
+    .section { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+    .section h3 { font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 6px; }
+    .field select, .field input[type="text"], .field input[type="number"], .field textarea {
+      width: 100%; padding: 8px 10px; border-radius: 6px;
+      border: 1px solid #475569; background: #0f172a; color: #e2e8f0;
+      font-size: 13px;
+    }
+    .field textarea { resize: vertical; min-height: 120px; font-family: monospace; line-height: 1.5; }
+    .field input[type="range"] { width: 100%; accent-color: #3b82f6; }
+    .range-row { display: flex; align-items: center; gap: 12px; }
+    .range-row input { flex: 1; }
+    .range-val { font-size: 13px; color: #94a3b8; width: 36px; text-align: right; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .save-btn {
+      background: #3b82f6; color: white; border: none; border-radius: 8px;
+      padding: 10px 24px; font-size: 14px; cursor: pointer;
+    }
+    .save-btn:hover { background: #2563eb; }
+    #save-status { font-size: 13px; color: #4ade80; margin-left: 12px; display: none; }
+
+    /* Logs */
+    .session-row {
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      margin-bottom: 10px; overflow: hidden;
+    }
+    .session-header {
+      padding: 12px 16px; cursor: pointer; display: grid;
+      grid-template-columns: 1fr 60px 80px 80px 80px 80px;
+      gap: 8px; align-items: center; font-size: 13px;
+    }
+    .session-header:hover { background: #263348; }
+    .session-id { color: #94a3b8; font-family: monospace; font-size: 12px; }
+    .metric { text-align: right; }
+    .metric.good { color: #4ade80; }
+    .metric.warn { color: #fbbf24; }
+    .metric.bad { color: #f87171; }
+    .session-turns { display: none; border-top: 1px solid #334155; }
+    .session-turns.open { display: block; }
+    .turn-row { padding: 12px 16px; border-bottom: 1px solid #1e293b; }
+    .turn-row:last-child { border-bottom: none; }
+    .turn-label { font-size: 11px; color: #64748b; margin-bottom: 6px; }
+    .turn-text { font-size: 13px; margin-bottom: 8px; }
+    .turn-text.user { color: #93c5fd; }
+    .turn-text.bot { color: #86efac; }
+    .turn-audio { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .turn-metrics { font-size: 11px; color: #64748b; margin-top: 4px; }
+    audio { height: 28px; }
+
+    .logs-header {
+      display: grid;
+      grid-template-columns: 1fr 60px 80px 80px 80px 80px;
+      gap: 8px; padding: 8px 16px; font-size: 11px; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .logs-header span { text-align: right; }
+    .logs-header span:first-child { text-align: left; }
+
+    #logs-empty { color: #64748b; font-size: 14px; text-align: center; padding: 40px; }
+    #logs-refresh { background: #1e293b; border: 1px solid #475569; color: #e2e8f0; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+
+<!-- Auth overlay -->
+<div id="auth-overlay">
+  <div id="auth-box">
+    <h2>🔐 Admin Access</h2>
+    <input type="password" id="password-input" placeholder="Enter admin password" />
+    <button onclick="doLogin()">Login</button>
+    <div id="auth-error">Wrong password</div>
+  </div>
+</div>
+
+<header>
+  <h1>🎙️ Voice Bot Admin</h1>
+  <a href="/">← Back to call UI</a>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('config')">Config</div>
+  <div class="tab" onclick="switchTab('logs')">Logs</div>
+</div>
+
+<!-- CONFIG TAB -->
+<div id="tab-config" class="tab-content active">
+
+  <div class="section">
+    <h3>STT — Speech to Text</h3>
+    <div class="two-col">
+      <div class="field">
+        <label>Provider</label>
+        <select id="stt_provider" onchange="updateSTTModels()">
+          <option value="openai">OpenAI Whisper</option>
+          <option value="deepgram">Deepgram Nova-2</option>
+          <option value="groq">Groq Whisper</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Model</label>
+        <select id="stt_model"></select>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Language (ISO code)</label>
+        <input type="text" id="stt_language" placeholder="en" maxlength="5" />
+      </div>
+      <div class="field">
+        <label>Temperature <span class="range-val" id="stt_temp_val">0.0</span></label>
+        <input type="range" id="stt_temperature" min="0" max="1" step="0.1" oninput="document.getElementById('stt_temp_val').textContent = this.value" />
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>LLM — Language Model</h3>
+    <div class="two-col">
+      <div class="field">
+        <label>Provider</label>
+        <select id="llm_provider" onchange="updateLLMModels()">
+          <option value="openai">OpenAI</option>
+          <option value="groq">Groq</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Model</label>
+        <select id="llm_model"></select>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Temperature <span class="range-val" id="llm_temp_val">0.8</span></label>
+        <input type="range" id="llm_temperature" min="0" max="2" step="0.1" oninput="document.getElementById('llm_temp_val').textContent = this.value" />
+      </div>
+      <div class="field">
+        <label>Max Tokens</label>
+        <input type="number" id="llm_max_tokens" min="50" max="1000" />
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Top-p <span class="range-val" id="llm_topp_val">1.0</span></label>
+        <input type="range" id="llm_top_p" min="0" max="1" step="0.05" oninput="document.getElementById('llm_topp_val').textContent = this.value" />
+      </div>
+      <div class="field" id="openai-only-fields">
+        <label>Frequency Penalty <span class="range-val" id="llm_freqp_val">0.0</span></label>
+        <input type="range" id="llm_freq_penalty" min="-2" max="2" step="0.1" oninput="document.getElementById('llm_freqp_val').textContent = this.value" />
+      </div>
+    </div>
+    <div class="field" id="presence-penalty-field">
+      <label>Presence Penalty <span class="range-val" id="llm_presencep_val">0.0</span></label>
+      <input type="range" id="llm_presence_penalty" min="-2" max="2" step="0.1" oninput="document.getElementById('llm_presencep_val').textContent = this.value" />
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>TTS — Text to Speech</h3>
+    <div class="two-col">
+      <div class="field">
+        <label>Provider</label>
+        <select disabled>
+          <option>Deepgram Aura</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Voice</label>
+        <select id="tts_voice">
+          <option value="aura-asteria-en">Asteria (F) — warm, conversational</option>
+          <option value="aura-luna-en">Luna (F) — soft, calm</option>
+          <option value="aura-stella-en">Stella (F) — expressive</option>
+          <option value="aura-hera-en">Hera (F) — confident</option>
+          <option value="aura-orion-en">Orion (M) — deep, clear</option>
+          <option value="aura-zeus-en">Zeus (M) — authoritative</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>System Prompt</h3>
+    <div class="field">
+      <textarea id="system_prompt" rows="10"></textarea>
+    </div>
+  </div>
+
+  <button class="save-btn" onclick="saveConfig()">Save Config</button>
+  <span id="save-status">✓ Saved — takes effect on next call</span>
+</div>
+
+<!-- LOGS TAB -->
+<div id="tab-logs" class="tab-content">
+  <button id="logs-refresh" onclick="loadLogs()">↻ Refresh</button>
+  <div class="logs-header">
+    <span>Session</span>
+    <span>Turns</span>
+    <span>Avg TTFA</span>
+    <span>Avg STT</span>
+    <span>Avg LLM</span>
+    <span>Avg TTS</span>
+  </div>
+  <div id="logs-container">
+    <div id="logs-empty">No calls yet</div>
+  </div>
+</div>
+
+<script>
+  let adminPassword = '';
+  const STT_MODELS = {
+    openai: ['whisper-1'],
+    deepgram: ['nova-2', 'nova-2-phonecall', 'nova-2-general'],
+    groq: ['whisper-large-v3', 'whisper-large-v3-turbo', 'distil-whisper-large-v3-en']
+  };
+  const LLM_MODELS = {
+    openai: ['gpt-4o-mini', 'gpt-4o'],
+    groq: ['llama-3.1-8b-instant', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768']
+  };
+
+  // --- Auth ---
+  function doLogin() {
+    const pw = document.getElementById('password-input').value;
+    // Quick check via API
+    fetch('/config', { headers: { 'X-Admin-Password': pw } })
+      .then(r => {
+        if (r.ok) {
+          adminPassword = pw;
+          document.getElementById('auth-overlay').style.display = 'none';
+          loadConfig();
+        } else {
+          document.getElementById('auth-error').style.display = 'block';
+        }
+      });
+  }
+  document.getElementById('password-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  // --- Tabs ---
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['config','logs'][i] === name));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'logs') loadLogs();
+  }
+
+  // --- Model dropdowns ---
+  function updateSTTModels(selected) {
+    const provider = document.getElementById('stt_provider').value;
+    const sel = document.getElementById('stt_model');
+    sel.innerHTML = STT_MODELS[provider].map(m => `<option value="${m}" ${m === selected ? 'selected' : ''}>${m}</option>`).join('');
+  }
+  function updateLLMModels(selected) {
+    const provider = document.getElementById('llm_provider').value;
+    const sel = document.getElementById('llm_model');
+    sel.innerHTML = LLM_MODELS[provider].map(m => `<option value="${m}" ${m === selected ? 'selected' : ''}>${m}</option>`).join('');
+    const isOpenAI = provider === 'openai';
+    document.getElementById('openai-only-fields').style.opacity = isOpenAI ? '1' : '0.4';
+    document.getElementById('presence-penalty-field').style.opacity = isOpenAI ? '1' : '0.4';
+  }
+
+  // --- Load config ---
+  function loadConfig() {
+    fetch('/config', { headers: { 'X-Admin-Password': adminPassword } })
+      .then(r => r.json())
+      .then(cfg => {
+        document.getElementById('stt_provider').value = cfg.stt_provider || 'openai';
+        updateSTTModels(cfg.stt_model);
+        document.getElementById('stt_language').value = cfg.stt_language || 'en';
+        document.getElementById('stt_temperature').value = cfg.stt_temperature ?? 0;
+        document.getElementById('stt_temp_val').textContent = cfg.stt_temperature ?? 0;
+
+        document.getElementById('llm_provider').value = cfg.llm_provider || 'openai';
+        updateLLMModels(cfg.llm_model);
+        document.getElementById('llm_temperature').value = cfg.llm_temperature ?? 0.8;
+        document.getElementById('llm_temp_val').textContent = cfg.llm_temperature ?? 0.8;
+        document.getElementById('llm_max_tokens').value = cfg.llm_max_tokens ?? 150;
+        document.getElementById('llm_top_p').value = cfg.llm_top_p ?? 1.0;
+        document.getElementById('llm_topp_val').textContent = cfg.llm_top_p ?? 1.0;
+        document.getElementById('llm_freq_penalty').value = cfg.llm_freq_penalty ?? 0;
+        document.getElementById('llm_freqp_val').textContent = cfg.llm_freq_penalty ?? 0;
+        document.getElementById('llm_presence_penalty').value = cfg.llm_presence_penalty ?? 0;
+        document.getElementById('llm_presencep_val').textContent = cfg.llm_presence_penalty ?? 0;
+
+        document.getElementById('tts_voice').value = cfg.tts_voice || 'aura-asteria-en';
+        document.getElementById('system_prompt').value = cfg.system_prompt || '';
+      });
+  }
+
+  // --- Save config ---
+  function saveConfig() {
+    const body = {
+      stt_provider: document.getElementById('stt_provider').value,
+      stt_model: document.getElementById('stt_model').value,
+      stt_language: document.getElementById('stt_language').value,
+      stt_temperature: parseFloat(document.getElementById('stt_temperature').value),
+      llm_provider: document.getElementById('llm_provider').value,
+      llm_model: document.getElementById('llm_model').value,
+      llm_temperature: parseFloat(document.getElementById('llm_temperature').value),
+      llm_max_tokens: parseInt(document.getElementById('llm_max_tokens').value),
+      llm_top_p: parseFloat(document.getElementById('llm_top_p').value),
+      llm_freq_penalty: parseFloat(document.getElementById('llm_freq_penalty').value),
+      llm_presence_penalty: parseFloat(document.getElementById('llm_presence_penalty').value),
+      tts_voice: document.getElementById('tts_voice').value,
+      system_prompt: document.getElementById('system_prompt').value
+    };
+    fetch('/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+      body: JSON.stringify(body)
+    }).then(r => {
+      if (r.ok) {
+        const s = document.getElementById('save-status');
+        s.style.display = 'inline';
+        setTimeout(() => s.style.display = 'none', 3000);
+      }
+    });
+  }
+
+  // --- Load logs ---
+  function loadLogs() {
+    fetch('/logs', { headers: { 'X-Admin-Password': adminPassword } })
+      .then(r => r.json())
+      .then(sessions => {
+        const container = document.getElementById('logs-container');
+        if (!sessions.length) {
+          container.innerHTML = '<div id="logs-empty">No calls yet</div>';
+          return;
+        }
+        container.innerHTML = sessions.map(s => renderSession(s)).join('');
+      });
+  }
+
+  function ttfaColor(ms) {
+    if (ms < 2000) return 'good';
+    if (ms < 3000) return 'warn';
+    return 'bad';
+  }
+
+  function renderSession(s) {
+    const shortId = s.session_id.slice(0, 8);
+    const date = new Date(s.started_at).toLocaleString();
+    const turns = s.turns_detail || [];
+    return `
+      <div class="session-row">
+        <div class="session-header" onclick="toggleSession('${s.session_id}')">
+          <div>
+            <div style="font-size:13px">${date}</div>
+            <div class="session-id">${shortId}…</div>
+          </div>
+          <div class="metric">${s.turns}</div>
+          <div class="metric ${ttfaColor(s.avg_ttfa_ms)}">${s.avg_ttfa_ms}ms</div>
+          <div class="metric">${s.avg_stt_ms}ms</div>
+          <div class="metric">${s.avg_llm_ms}ms</div>
+          <div class="metric">${s.avg_tts_ms}ms</div>
+        </div>
+        <div class="session-turns" id="turns-${s.session_id}">
+          ${turns.map(t => renderTurn(t, s.session_id)).join('')}
+        </div>
+      </div>`;
+  }
+
+  function renderTurn(t, sessionId) {
+    const userFile = `user_${t.turn_number}.webm`;
+    const botFile = `bot_${t.turn_number}.mp3`;
+    return `
+      <div class="turn-row">
+        <div class="turn-label">Turn ${t.turn_number} &nbsp;·&nbsp; TTFA: ${t.ttfa_ms}ms &nbsp;·&nbsp; STT: ${t.stt_ms}ms &nbsp;·&nbsp; LLM: ${t.llm_ms}ms &nbsp;·&nbsp; TTS: ${t.tts_ms}ms</div>
+        <div class="turn-text user">👤 ${t.user_text || '—'}</div>
+        <div class="turn-text bot">🤖 ${t.bot_text || '—'}</div>
+        <div class="turn-audio">
+          <span style="font-size:12px;color:#64748b">User:</span>
+          <audio controls src="/audio/${sessionId}/${userFile}?pw=${adminPassword}"></audio>
+          <span style="font-size:12px;color:#64748b">Bot:</span>
+          <audio controls src="/audio/${sessionId}/${botFile}?pw=${adminPassword}"></audio>
+        </div>
+      </div>`;
+  }
+
+  function toggleSession(id) {
+    const el = document.getElementById('turns-' + id);
+    el.classList.toggle('open');
+  }
+</script>
+</body>
+</html>
