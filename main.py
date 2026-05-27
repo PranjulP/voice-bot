@@ -342,6 +342,43 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # --- Admin REST Endpoints ---
 
+@app.get("/info")
+async def get_info():
+    """Public endpoint — returns current model config + stats for the call UI."""
+    cfg = load_config()
+    conn = get_db()
+    stats = conn.execute("""
+        SELECT COUNT(*) as total_calls,
+               ROUND(AVG(ttfa_ms)) as avg_ttfa_ms,
+               ROUND(AVG(stt_ms)) as avg_stt_ms
+        FROM calls
+    """).fetchone()
+    conn.close()
+
+    # Extract persona name from system prompt ("You are X,")
+    prompt = cfg.get("system_prompt", "")
+    persona_name = "Assistant"
+    if prompt:
+        import re
+        m = re.search(r"You are (\w+)", prompt)
+        if m:
+            persona_name = m.group(1)
+        # First line as description
+        persona_line = prompt.strip().split('\n')[0][:80]
+    else:
+        persona_line = ""
+
+    return JSONResponse({
+        "stt": f"{cfg.get('stt_provider','openai')} / {cfg.get('stt_model','whisper-1')}",
+        "llm": f"{cfg.get('llm_provider','openai')} / {cfg.get('llm_model','gpt-4o-mini')}",
+        "tts": cfg.get("tts_voice", "aura-asteria-en"),
+        "persona_name": persona_name,
+        "persona_line": persona_line,
+        "total_calls": stats["total_calls"] or 0,
+        "avg_ttfa_ms": stats["avg_ttfa_ms"] or 0,
+        "avg_stt_ms": stats["avg_stt_ms"] or 0,
+    })
+
 @app.get("/config")
 async def get_config(request: Request):
     check_auth(request)

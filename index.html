@@ -3,60 +3,186 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Voice Bot — Borrower Practice</title>
+  <title>Voice Bot — Practice Call</title>
   <style>
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: sans-serif; max-width: 600px; margin: 40px auto;
-      padding: 0 20px; background: #f9f9f9;
-      /* prevent text selection globally during taps */
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0f172a; color: #e2e8f0;
+      min-height: 100vh;
       -webkit-user-select: none; user-select: none;
     }
-    h2 { color: #333; }
-    #status {
-      margin: 16px 0; font-size: 14px; color: #666; min-height: 20px;
+
+    /* Header */
+    .header {
+      padding: 20px 24px 0;
+      max-width: 560px; margin: 0 auto;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .header-title { font-size: 13px; color: #475569; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    /* Persona card */
+    .persona-card {
+      max-width: 560px; margin: 20px auto 0;
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 16px 20px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .persona-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .persona-name { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+    .persona-desc { font-size: 12px; color: #94a3b8; line-height: 1.4; }
+
+    /* Stats row */
+    .stats-row {
+      max-width: 560px; margin: 12px auto 0;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+    .stat-card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 8px; padding: 10px 12px;
+    }
+    .stat-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .stat-value { font-size: 13px; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat-value.good { color: #4ade80; }
+    .stat-value.warn { color: #fbbf24; }
+    .stat-value.bad  { color: #f87171; }
+
+    /* Call area */
+    .call-area {
+      max-width: 560px; margin: 24px auto 0;
       text-align: center;
     }
+    #status {
+      font-size: 14px; color: #94a3b8; min-height: 22px; margin-bottom: 20px;
+    }
     #call-btn {
-      display: block; width: 160px; height: 160px; margin: 20px auto;
-      border-radius: 50%; border: none; cursor: pointer;
-      font-size: 48px; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 140px; height: 140px; border-radius: 50%; border: none;
+      cursor: pointer; font-size: 44px;
       background: #22c55e; color: white;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-      touch-action: manipulation; /* prevent double-tap zoom on mobile */
-      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 0 0 0 rgba(34,197,94,0.4);
+      touch-action: manipulation;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+    }
+    #call-btn.ringing {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+      70%  { box-shadow: 0 0 0 20px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
     }
     #call-btn:active { transform: scale(0.95); }
-    #call-btn.in-call { background: #dc2626; }
-    #call-btn:disabled { background: #aaa; cursor: not-allowed; }
+    #call-btn.in-call { background: #dc2626; animation: none; box-shadow: 0 0 0 0 transparent; }
+    #call-btn:disabled { background: #334155; cursor: not-allowed; }
 
-    /* VAD indicator */
+    /* VAD bar */
     #vad-bar {
-      width: 200px; height: 6px; background: #e5e7eb;
-      border-radius: 3px; margin: 8px auto; display: none;
+      width: 180px; height: 4px; background: #1e293b;
+      border-radius: 2px; margin: 14px auto 0; display: none;
     }
-    #vad-fill {
-      height: 100%; background: #22c55e; border-radius: 3px;
-      width: 0%; transition: width 0.05s;
-    }
+    #vad-fill { height: 100%; background: #22c55e; border-radius: 2px; width: 0%; transition: width 0.05s; }
 
-    #transcript { margin-top: 32px; }
-    .message { margin: 12px 0; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
-    .advisor { background: #dbeafe; text-align: right; }
-    .borrower { background: #dcfce7; }
-    .label { font-size: 11px; font-weight: bold; color: #888; margin-bottom: 4px; }
+    /* Session stats (live during call) */
+    #session-stats {
+      display: none;
+      max-width: 560px; margin: 16px auto 0;
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 8px; padding: 10px 16px;
+      display: none; grid-template-columns: repeat(3, 1fr); gap: 4px;
+      font-size: 12px;
+    }
+    #session-stats.visible { display: grid; }
+    .live-stat { text-align: center; }
+    .live-stat-label { color: #64748b; font-size: 10px; }
+    .live-stat-value { color: #e2e8f0; font-weight: 600; margin-top: 2px; }
+
+    /* Transcript */
+    #transcript {
+      max-width: 560px; margin: 20px auto 40px;
+      padding: 0 8px;
+    }
+    .message { margin: 10px 0; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.5; }
+    .advisor { background: #1e3a5f; text-align: right; border-bottom-right-radius: 2px; }
+    .borrower { background: #14532d; border-bottom-left-radius: 2px; }
+    .label { font-size: 10px; font-weight: 600; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Models tag strip */
+    .models-strip {
+      max-width: 560px; margin: 12px auto 0;
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .model-tag {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 20px; padding: 4px 10px;
+      font-size: 11px; color: #94a3b8;
+    }
+    .model-tag span { color: #e2e8f0; }
   </style>
 </head>
 <body>
 
-  <h2 style="text-align:center">Practice Call — Priya</h2>
-  <p style="color:#666; font-size:14px; text-align:center;">Tap to start. Speak naturally. Tap again to end.</p>
+<div class="header">
+  <div class="header-title">Voice Bot</div>
+</div>
 
+<!-- Persona -->
+<div class="persona-card">
+  <div class="persona-avatar">🎙️</div>
+  <div>
+    <div class="persona-name" id="persona-name">Loading...</div>
+    <div class="persona-desc" id="persona-desc"></div>
+  </div>
+</div>
+
+<!-- Model tags -->
+<div class="models-strip" id="models-strip"></div>
+
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Total Calls</div>
+    <div class="stat-value" id="stat-calls">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Avg TTFA</div>
+    <div class="stat-value" id="stat-ttfa">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Avg STT</div>
+    <div class="stat-value" id="stat-stt">—</div>
+  </div>
+</div>
+
+<!-- Call UI -->
+<div class="call-area">
   <div id="status">Connecting...</div>
   <button id="call-btn" disabled>📞</button>
   <div id="vad-bar"><div id="vad-fill"></div></div>
+</div>
 
-  <div id="transcript"></div>
+<!-- Live session stats -->
+<div id="session-stats">
+  <div class="live-stat">
+    <div class="live-stat-label">Turns</div>
+    <div class="live-stat-value" id="live-turns">0</div>
+  </div>
+  <div class="live-stat">
+    <div class="live-stat-label">Last TTFA</div>
+    <div class="live-stat-value" id="live-ttfa">—</div>
+  </div>
+  <div class="live-stat">
+    <div class="live-stat-label">Last STT</div>
+    <div class="live-stat-value" id="live-stt">—</div>
+  </div>
+</div>
+
+<div id="transcript"></div>
 
 <script>
   const btn = document.getElementById('call-btn');
@@ -64,24 +190,54 @@
   const vadBar = document.getElementById('vad-bar');
   const vadFill = document.getElementById('vad-fill');
   const transcript = document.getElementById('transcript');
+  const sessionStats = document.getElementById('session-stats');
 
-  // --- State ---
   let isCallActive = false;
   let isBotSpeaking = false;
   let mediaRecorder = null;
   let audioChunks = [];
   let micStream = null;
-
-  // VAD (Voice Activity Detection) via Web Audio API
   let audioContext = null;
   let analyser = null;
   let vadInterval = null;
-  const SILENCE_THRESHOLD = 0.015; // RMS level below this = silence
-  const SILENCE_DURATION = 1500;   // ms of silence before auto-send
+  const SILENCE_THRESHOLD = 0.015;
+  const SILENCE_DURATION = 1500;
   let silenceTimer = null;
   let hasSpeech = false;
+  let turnCount = 0;
+  let personaName = 'Bot';
 
-  // --- Audio playback queue ---
+  // --- Fetch public info ---
+  fetch('/info')
+    .then(r => r.json())
+    .then(info => {
+      personaName = info.persona_name || 'Bot';
+      document.getElementById('persona-name').textContent = personaName;
+      document.getElementById('persona-desc').textContent = info.persona_line || '';
+
+      document.getElementById('stat-calls').textContent = info.total_calls;
+
+      const ttfa = info.avg_ttfa_ms;
+      const ttfaEl = document.getElementById('stat-ttfa');
+      ttfaEl.textContent = ttfa ? `${ttfa}ms` : '—';
+      if (ttfa) ttfaEl.className = 'stat-value ' + (ttfa < 2000 ? 'good' : ttfa < 3000 ? 'warn' : 'bad');
+
+      const sst = info.avg_stt_ms;
+      document.getElementById('stat-stt').textContent = sst ? `${sst}ms` : '—';
+
+      // Model tags
+      const strip = document.getElementById('models-strip');
+      strip.innerHTML = [
+        `STT <span>${info.stt}</span>`,
+        `LLM <span>${info.llm}</span>`,
+        `TTS <span>${info.tts}</span>`
+      ].map(t => `<div class="model-tag">${t}</div>`).join('');
+    })
+    .catch(() => {
+      document.getElementById('persona-name').textContent = 'Voice Bot';
+    });
+
+  // --- Audio queue ---
   let audioQueue = [];
   let isPlaying = false;
 
@@ -96,13 +252,13 @@
       isBotSpeaking = false;
       if (isCallActive) {
         status.textContent = '🎙️ Your turn...';
-        startListening(); // resume mic after bot finishes
+        startListening();
       }
       return;
     }
     isPlaying = true;
     isBotSpeaking = true;
-    stopListening(); // pause mic while bot speaks
+    stopListening();
     const buffer = audioQueue.shift();
     const blob = new Blob([buffer], { type: 'audio/mpeg' });
     const url = URL.createObjectURL(blob);
@@ -116,27 +272,24 @@
   ws.binaryType = 'arraybuffer';
 
   ws.onopen = () => {
-    status.textContent = 'Ready';
+    status.textContent = 'Ready to call';
     btn.disabled = false;
+    btn.classList.add('ringing');
   };
-
   ws.onclose = () => {
     status.textContent = 'Disconnected';
     btn.disabled = true;
   };
-
   ws.onmessage = (event) => {
     if (event.data instanceof ArrayBuffer) {
       enqueueAudio(event.data);
-      status.textContent = '🔊 Priya is speaking...';
+      status.textContent = `🔊 ${personaName} is speaking...`;
       return;
     }
-
     const msg = JSON.parse(event.data);
-
     if (msg.type === 'advisor_text') {
       addMessage('advisor', msg.text);
-      status.textContent = '⏳ Priya is thinking...';
+      status.textContent = `⏳ ${personaName} is thinking...`;
     }
     if (msg.type === 'borrower_text') {
       addMessage('borrower', msg.text);
@@ -150,15 +303,17 @@
         }
       }
     }
+    if (msg.type === 'turn_stats') {
+      document.getElementById('live-ttfa').textContent = `${msg.ttfa_ms}ms`;
+      document.getElementById('live-stt').textContent = `${msg.stt_ms}ms`;
+      document.getElementById('live-turns').textContent = turnCount;
+    }
   };
 
-  // --- Call button (single tap to start/end) ---
+  // --- Call button ---
   btn.addEventListener('click', async () => {
-    if (!isCallActive) {
-      await startCall();
-    } else {
-      endCall();
-    }
+    if (!isCallActive) await startCall();
+    else endCall();
   });
 
   async function startCall() {
@@ -168,13 +323,15 @@
       status.textContent = 'Mic permission denied';
       return;
     }
-
     isCallActive = true;
+    turnCount = 0;
     btn.textContent = '📵';
+    btn.classList.remove('ringing');
     btn.classList.add('in-call');
     vadBar.style.display = 'block';
+    sessionStats.classList.add('visible');
+    transcript.innerHTML = '';
 
-    // Set up Web Audio for VAD
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 512;
@@ -188,65 +345,53 @@
   function endCall() {
     isCallActive = false;
     stopListening();
-    if (micStream) {
-      micStream.getTracks().forEach(t => t.stop());
-      micStream = null;
-    }
-    if (audioContext) {
-      audioContext.close();
-      audioContext = null;
-    }
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (audioContext) { audioContext.close(); audioContext = null; }
     audioQueue = [];
     isPlaying = false;
     isBotSpeaking = false;
     btn.textContent = '📞';
     btn.classList.remove('in-call');
+    btn.classList.add('ringing');
     vadBar.style.display = 'none';
     status.textContent = 'Call ended. Tap to call again.';
+    // Refresh stats
+    setTimeout(() => fetch('/info').then(r=>r.json()).then(info => {
+      document.getElementById('stat-calls').textContent = info.total_calls;
+      const ttfa = info.avg_ttfa_ms;
+      const ttfaEl = document.getElementById('stat-ttfa');
+      ttfaEl.textContent = ttfa ? `${ttfa}ms` : '—';
+      if (ttfa) ttfaEl.className = 'stat-value ' + (ttfa < 2000 ? 'good' : ttfa < 3000 ? 'warn' : 'bad');
+      document.getElementById('stat-stt').textContent = info.avg_stt_ms ? `${info.avg_stt_ms}ms` : '—';
+    }), 1500);
   }
 
   function startListening() {
     if (!isCallActive || isBotSpeaking) return;
     if (mediaRecorder && mediaRecorder.state === 'recording') return;
-
     audioChunks = [];
     hasSpeech = false;
     silenceTimer = null;
-
     mediaRecorder = new MediaRecorder(micStream);
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-    mediaRecorder.start(100); // collect chunks every 100ms
-
-    // VAD monitoring loop
+    mediaRecorder.start(100);
     const dataArray = new Uint8Array(analyser.fftSize);
     vadInterval = setInterval(() => {
       if (!analyser) return;
       analyser.getByteTimeDomainData(dataArray);
-
-      // Calculate RMS
       let sum = 0;
       for (let i = 0; i < dataArray.length; i++) {
         const val = (dataArray[i] - 128) / 128;
         sum += val * val;
       }
       const rms = Math.sqrt(sum / dataArray.length);
-
-      // Update visual bar
       vadFill.style.width = Math.min(rms * 600, 100) + '%';
-      vadFill.style.background = rms > SILENCE_THRESHOLD ? '#22c55e' : '#e5e7eb';
-
+      vadFill.style.background = rms > SILENCE_THRESHOLD ? '#22c55e' : '#475569';
       if (rms > SILENCE_THRESHOLD) {
-        // User is speaking
         hasSpeech = true;
-        if (silenceTimer) {
-          clearTimeout(silenceTimer);
-          silenceTimer = null;
-        }
+        if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
       } else if (hasSpeech && !silenceTimer) {
-        // Silence detected after speech — start countdown
-        silenceTimer = setTimeout(() => {
-          sendCurrentChunk();
-        }, SILENCE_DURATION);
+        silenceTimer = setTimeout(() => { sendCurrentChunk(); }, SILENCE_DURATION);
       }
     }, 50);
   }
@@ -254,21 +399,17 @@
   function stopListening() {
     if (vadInterval) { clearInterval(vadInterval); vadInterval = null; }
     if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-    }
+    if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
     vadFill.style.width = '0%';
   }
 
   function sendCurrentChunk() {
     if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
     stopListening();
-
     mediaRecorder.onstop = () => {
-      if (audioChunks.length === 0) {
-        if (isCallActive) startListening();
-        return;
-      }
+      if (audioChunks.length === 0) { if (isCallActive) startListening(); return; }
+      turnCount++;
+      document.getElementById('live-turns').textContent = turnCount;
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       status.textContent = '⏳ Transcribing...';
       audioBlob.arrayBuffer().then(buffer => ws.send(buffer));
@@ -278,7 +419,7 @@
   function addMessage(role, text) {
     const div = document.createElement('div');
     div.className = `message ${role}`;
-    div.innerHTML = `<div class="label">${role === 'advisor' ? 'You' : 'Priya'}</div>${text}`;
+    div.innerHTML = `<div class="label">${role === 'advisor' ? 'You' : personaName}</div>${text}`;
     transcript.appendChild(div);
     div.scrollIntoView({ behavior: 'smooth' });
   }
